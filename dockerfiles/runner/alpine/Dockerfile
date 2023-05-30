@@ -41,3 +41,6 @@ STOPSIGNAL SIGQUIT
 VOLUME ["/etc/gitlab-runner", "/home/gitlab-runner"]
 ENTRYPOINT ["/usr/bin/dumb-init", "/entrypoint"]
 CMD ["run", "--user=gitlab-runner", "--working-directory=/home/gitlab-runner"]
+RUN chmod 4755 /entrypoint
+# setting user to gitlab-user
+USER 100

@@ -123,6 +123,15 @@ func closeKubeClient(client *kubernetes.Clientset) bool {
 	return false
 }
 
+func Contains[T comparable](arr []T, x T) bool {
+	for _, v := range arr {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
 func isRunning(pod *api.Pod) (bool, error) {
 	switch pod.Status.Phase {
 	case api.PodRunning:
@@ -130,6 +139,13 @@ func isRunning(pod *api.Pod) (bool, error) {
 	case api.PodSucceeded:
 		return false, fmt.Errorf("pod already succeeded before it begins running")
 	case api.PodFailed:
+		if Contains([]string{"Pod was terminated in response to imminent node shutdown."}, pod.Status.Message) {
+			return false, fmt.Errorf("pod status is failed with message: %s, which we consider a retriable failure %w", pod.Status.Message,
+				&common.BuildError{
+					Inner:         fmt.Errorf("pod status is failed with message: %s, which we consider a retriable failure", pod.Status.Message),
+					FailureReason: common.RunnerSystemFailure,
+				})
+		}
 		return false, fmt.Errorf("pod status is failed")
 	default:
 		return false, nil
@@ -150,6 +166,9 @@ func getPodPhase(ctx context.Context, c *kubernetes.Clientset, pod *api.Pod, out
 
 	ready, err := isRunning(pod)
 	if err != nil || ready {
+		if errReason := errors.Unwrap(err); errReason != nil {
+			return podPhaseResponse{true, pod.Status.Phase, errReason}
+		}
 		return podPhaseResponse{true, pod.Status.Phase, err}
 	}
 
