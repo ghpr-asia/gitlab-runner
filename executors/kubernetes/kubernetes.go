@@ -403,6 +403,9 @@ func (s *executor) runWithExecLegacy(cmd common.ExecutorCommand) error {
 		s.Debugln(fmt.Sprintf("Container %q exited with error: %v", containerName, err))
 		var exitError exec.CodeExitError
 		if err != nil && errors.As(err, &exitError) {
+			if buildErr, ok := err.(*common.BuildError); ok {
+				return &common.BuildError{Inner: err, ExitCode: exitError.ExitStatus(), FailureReason: buildErr.FailureReason}
+			}
 			return &common.BuildError{Inner: err, ExitCode: exitError.ExitStatus()}
 		}
 		return err
@@ -722,9 +725,13 @@ func (s *executor) saveScriptOnEmptyDir(ctx context.Context, containerName, scri
 
 	select {
 	case err := <-s.runInContainerWithExec(ctx, containerName, s.BuildShell.DockerCommand, saveScript):
-		s.Debugln(fmt.Sprintf("Container %q exited with error: %v", containerName, err))
+		s.Warningln(fmt.Sprintf("Container %q exited with error: %v", containerName, err))
+		// s.Debugln(fmt.Sprintf("Container %q exited with error: %v", containerName, err))
 		var exitError exec.CodeExitError
 		if err != nil && errors.As(err, &exitError) {
+			if buildErr, ok := err.(*common.BuildError); ok {
+				return &common.BuildError{Inner: err, ExitCode: exitError.ExitStatus(), FailureReason: buildErr.FailureReason}
+			}
 			return &common.BuildError{Inner: err, ExitCode: exitError.ExitStatus()}
 		}
 		return err

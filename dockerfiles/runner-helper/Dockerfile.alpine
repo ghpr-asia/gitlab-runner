@@ -13,13 +13,9 @@ RUN apk update && \
     apk upgrade --no-cache && \
     apk add --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main \
     --no-cache -fu ca-certificates git busybox zlib pcre2 && \
-    apk add --no-cache bash dumb-init miniperl \
-    && ln -s miniperl /usr/bin/perl
-
-# TODO revisit use of alternate repository above and manual installation of git-lfs bellow.
-# See: https://gitlab.com/gitlab-org/gitlab-runner/-/issues/29944
-
-RUN wget https://github.com/git-lfs/git-lfs/releases/download/v${GIT_LFS_VERSION}/git-lfs-linux-${ARCH}-v${GIT_LFS_VERSION}.tar.gz -O /tmp/git-lfs.tgz && \
+    apk add --no-cache bash dumb-init miniperl && \
+    ln -s miniperl /usr/bin/perl && \
+    wget https://github.com/git-lfs/git-lfs/releases/download/v${GIT_LFS_VERSION}/git-lfs-linux-${ARCH}-v${GIT_LFS_VERSION}.tar.gz -O /tmp/git-lfs.tgz && \
     cd /tmp && \
     tar -zxf git-lfs.tgz && \
     git-lfs-${GIT_LFS_VERSION}/install.sh && \
@@ -33,7 +29,10 @@ COPY ./scripts/ ./binaries/gitlab-runner-helper /usr/bin/
 
 RUN echo 'hosts: files dns' >> /etc/nsswitch.conf
 
-# NOTE: The ENTRYPOINT metadata is not preserved on export, so we need to reapply this metadata on import.
-# See https://gitlab.com/gitlab-org/gitlab-runner/-/merge_requests/2058#note_388341301
+RUN chmod 4755 /entrypoint
+# setting user to gitlab-user
+RUN addgroup -S -g 1000 gitlab-runner \
+	 && adduser -S -D -u 1000 -s /bin/ash -h /home/gitlab-runner -G gitlab-runner gitlab-runner
+USER 1000
 ENTRYPOINT ["/usr/bin/dumb-init", "/entrypoint"]
 CMD ["sh"]
